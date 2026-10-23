@@ -338,11 +338,16 @@
       <button type="button" class="modecard" data-mode="bi"><b>🧰 Store / स्टोर</b><span>हिंदी + English, स्टोर वाले के लिए आसान।</span></button>
     </div>
   </div>
+  <div class="card" id="connLocked" hidden>
+    <h3 data-i="connectTitle"></h3>
+    <p style="margin:0 0 12px"><b>✅ <span data-i="connected"></span></b><br><span class="muted" id="connMask"></span></p>
+    <button class="sec" type="button" id="btnUnlock"><span data-i="changeConn"></span></button>
+  </div>
   <form id="fSet" class="card" autocomplete="off">
     <h3 data-i="connectTitle"></h3>
     <div class="grid">
-      <label>Apps Script Web App URL <input name="url" required placeholder="https://script.google.com/macros/s/…/exec"></label>
-      <label>PIN <input name="pin" required></label>
+      <label>Apps Script Web App URL <input name="url" required placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" spellcheck="false"></label>
+      <label>PIN <input name="pin" type="password" inputmode="numeric" required autocomplete="new-password"></label>
     </div>
     <button class="primary" type="submit" data-i="saveCheck"></button>
   </form>
@@ -433,7 +438,9 @@ const D = {
                   'एडिट करना हो, Direct/Indirect बदलना हो या किसी को बंद करना हो तो Google Sheet की "Assets" टैब में बदल दें (Active = No)।'],
   hCode: ['Code', 'कोड'], hName: ['Name', 'नाम'], hCons: ['Consumption', 'खपत टाइप'], hLoc: ['Location', 'लोकेशन'], hLast: ['Last reading', 'आख़िरी रीडिंग'],
   chipD: ['Direct', 'डायरेक्ट'], chipI: ['Indirect', 'इनडायरेक्ट'],
-  connectTitle: ['⚙ Connect to Google Sheet', '⚙ Google Sheet से जोड़ें'], saveCheck: ['Save & test', 'सेव करें और जाँचें'],
+  connectTitle: ['⚙ Connect to Google Sheet', '⚙ Google Sheet से जोड़ें'],
+  connected: ['Connected to Google Sheet', 'Google Sheet से जुड़ा है'], changeConn: ['🔒 Change connection', '🔒 कनेक्शन बदलें'],
+  askPin: ['Enter the PIN to change the connection:', 'कनेक्शन बदलने के लिए PIN डालें:'], wrongPin: ['Wrong PIN', 'PIN गलत है'], saveCheck: ['Save & test', 'सेव करें और जाँचें'],
   phoneData: ['Data on this phone', 'इस फ़ोन का डेटा'], syncNow: ['🔄 Sync now', '🔄 अभी सिंक करें'],
   devInfo: ['Device: <b>{0}</b> · Pending: <b>{1}</b> · Last sync: <b>{2}</b>', 'डिवाइस: <b>{0}</b> · सिंक बाकी: <b>{1}</b> · आख़िरी सिंक: <b>{2}</b>'],
   lastSync: ['Last sync', 'आख़िरी सिंक'], notYet: ['not yet', 'अभी नहीं'], assetsN: ['Vehicles / machines: {0}', 'गाड़ियाँ / मशीनें: {0}'],
@@ -1004,7 +1011,23 @@ $('fSet').onsubmit = async e => {
   if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(f.url)) return toast(tm('urlFmt'), true);
   cfg = { url: f.url, pin: f.pin }; save(K.cfg, cfg);
   await trySync(true);
-  if (netOk && lastSync) showTab('dash');
+  if (netOk && lastSync) { lockConn(); showTab('dash'); }
+};
+/* URL और PIN छुपाकर रखना: बदलने के लिए PIN चाहिए */
+function lockConn() {
+  const locked = !!(cfg.url && cfg.pin);
+  $('connLocked').hidden = !locked;
+  $('fSet').hidden = locked;
+  $('fSet').elements.url.value = locked ? '' : (cfg.url || '');
+  $('fSet').elements.pin.value = '';
+  $('connMask').textContent = locked ? 'script.google.com/macros/s/••••••••' + cfg.url.slice(-10, -5) + '…/exec  ·  PIN ••••' : '';
+}
+$('btnUnlock').onclick = () => {
+  const p = prompt(tm('askPin'));
+  if (p === null) return;
+  if (p.trim() !== String(cfg.pin)) return toast(tm('wrongPin'), true);
+  $('connLocked').hidden = true; $('fSet').hidden = false;
+  $('fSet').elements.url.value = cfg.url; $('fSet').elements.pin.value = cfg.pin;
 };
 $('btnReload').onclick = () => trySync(true);
 
@@ -1315,8 +1338,7 @@ $('btnExport').onclick = async () => {
   document.querySelectorAll('input[type=date][name=date]').forEach(i => i.value = td);
   const nm = load(K.name, '');
   document.querySelectorAll('.myname').forEach(i => i.value = nm);
-  $('fSet').elements.url.value = cfg.url || '';
-  $('fSet').elements.pin.value = cfg.pin || '';
+  lockConn();
   setRange('month');
   applyLang();
   if (!cfg.url) showTab('set');
