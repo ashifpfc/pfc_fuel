@@ -1,6 +1,6 @@
 // PFC Fuel Tracker – ऐप की फ़ाइलें फ़ोन में रखता है ताकि बिना इंटरनेट के खुल सके।
 // ऐप में बदलाव करने के बाद नीचे का version बदलें (v2, v3…)।
-const CACHE = 'pfc-fuel-v4';
+const CACHE = 'pfc-fuel-v5';
 const FILES = ['./', './index.html', './manifest.json', './chart.min.js', './logo.png', './logo-white.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
