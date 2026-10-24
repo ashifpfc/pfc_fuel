@@ -148,6 +148,16 @@
   h3 .en { display:inline; margin-left:6px; }
   .badge .en, .chip .en { display:inline; font-size:inherit; opacity:.85; }
   #toast { white-space:pre-line; }
+  .period { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; padding:12px 16px; }
+  .period label { flex-direction:row; align-items:center; gap:6px; }
+  .period select { width:auto; padding:7px 9px; }
+  .period .ptitle { font-size:14px; color:var(--ink); }
+  .period .pq { margin:0; }
+  .period.on { border-color:var(--acc); box-shadow:0 0 0 3px rgba(245,165,36,.18); }
+  .vbadge { background:#f5a524; color:#15171c; font-weight:700; font-size:12px; border-radius:20px; padding:6px 10px; white-space:nowrap; }
+  /* बॉस (view-only PIN): सिर्फ़ डैशबोर्ड और रिपोर्ट */
+  body.viewonly nav button[data-t=rec], body.viewonly nav button[data-t=iss], body.viewonly nav button[data-t=bulk],
+  body.viewonly nav button[data-t=mst], body.viewonly .x, body.viewonly #btnExport, body.viewonly .alert.q { display:none !important; }
   #langBtn { border:1px solid rgba(255,255,255,.22); background:rgba(255,255,255,.08); color:#fff; border-radius:20px; padding:7px 11px; font-size:12px; cursor:pointer; white-space:nowrap; }
   .modecards { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; }
   .modecard { border:2px solid var(--line); border-radius:14px; padding:14px; cursor:pointer; background:#fff; text-align:left; font-family:inherit; }
@@ -161,6 +171,7 @@
   <img src="logo-white.png" alt="PFC Group">
   <div class="htitle"><b>Fuel Management</b><span>Diesel · Petrol Tracking</span></div>
   <button id="syncBtn">…</button>
+  <span id="viewBadge" class="vbadge" hidden>👁 View only</span>
   <button id="langBtn" title="Language / भाषा">EN</button>
 </header>
 
@@ -179,13 +190,25 @@
 <section id="dash" class="tab on">
   <div id="alerts"></div>
   <div class="stockcards" id="stockCards"></div>
+  <div class="card period" id="periodBar">
+    <b class="ptitle" data-i="period"></b>
+    <label><span data-i="pFrom"></span> <select id="pFrom"></select></label>
+    <label><span data-i="pTo"></span> <select id="pTo"></select></label>
+    <div class="quick pq">
+      <button type="button" data-p="this"><span data-i="pThis"></span></button>
+      <button type="button" data-p="last"><span data-i="pLast"></span></button>
+      <button type="button" data-p="3"><span data-i="p3"></span></button>
+      <button type="button" data-p="all"><span data-i="pAll"></span></button>
+    </div>
+    <small class="muted" id="pStatus"></small>
+  </div>
   <div class="kpis" id="monthKpis"></div>
   <div class="charts">
-    <div class="card"><h3><span data-i="c30"></span> <small data-i="c30s"></small></h3><div class="cbox"><canvas id="cTrend"></canvas></div></div>
-    <div class="card"><h3><span data-i="cMonth"></span> <small data-i="cMonthS"></small></h3><div class="cbox"><canvas id="cCat"></canvas></div></div>
+    <div class="card"><h3><span id="hTrend"></span> <small id="hTrendS"></small></h3><div class="cbox"><canvas id="cTrend"></canvas></div></div>
+    <div class="card"><h3><span id="hCat"></span> <small id="hCatS"></small></h3><div class="cbox"><canvas id="cCat"></canvas></div></div>
   </div>
   <div class="charts">
-    <div class="card"><h3><span data-i="cTop"></span> <small data-i="cTopS"></small></h3><div class="cbox"><canvas id="cTop"></canvas></div></div>
+    <div class="card"><h3><span id="hTop"></span> <small id="hTopS"></small></h3><div class="cbox"><canvas id="cTop"></canvas></div></div>
     <div class="card"><h3 data-i="recent"></h3><div id="recent" style="max-height:280px;overflow:auto"></div></div>
   </div>
 </section>
@@ -289,6 +312,7 @@
       <button data-r="year"><span data-i="qYear"></span></button>
     </div>
     <div class="grid">
+      <label><span data-i="rMonths"></span> <span style="display:flex;gap:6px"><select id="rmFrom" aria-label="From month"></select><select id="rmTo" aria-label="To month"></select></span></label>
       <label>From <input type="date" id="rFrom"></label>
       <label>To <input type="date" id="rTo"></label>
       <label><span data-i="fuel"></span> <select id="rFuel"><option value="" data-i="all"></option><option>Diesel</option><option>Petrol</option></select></label>
@@ -440,6 +464,13 @@ const D = {
   chipD: ['Direct', 'डायरेक्ट'], chipI: ['Indirect', 'इनडायरेक्ट'],
   connectTitle: ['⚙ Connect to Google Sheet', '⚙ Google Sheet से जोड़ें'],
   connected: ['Connected to Google Sheet', 'Google Sheet से जुड़ा है'], changeConn: ['🔒 Change connection', '🔒 कनेक्शन बदलें'],
+  period: ['📅 Show period', '📅 अवधि चुनें'], pFrom: ['From', 'से'], pTo: ['To', 'तक'],
+  pThis: ['This month', 'इस महीने'], pLast: ['Last month', 'पिछला महीना'], p3: ['Last 3 months', 'पिछले 3 महीने'], pAll: ['All data', 'पूरा डेटा'],
+  pLoading: ['Loading {0}…', '{0} लोड हो रहा है…'], pShowing: ['Showing {0}. Stock above is always today\'s stock.', '{0} दिख रहा है। ऊपर का स्टॉक हमेशा आज का है।'],
+  pNeedNet: ['Other months need internet. Showing this month.', 'दूसरे महीने देखने के लिए इंटरनेट चाहिए। अभी इस महीने का दिख रहा है।'],
+  pRecv: ['Received', 'आवक'], pCons: ['Consumed', 'खपत'], pTrend: ['Trend', 'ट्रेंड'], pCat: ['Direct vs Indirect', 'डायरेक्ट / इनडायरेक्ट'],
+  pTop: ['Top consumers', 'सबसे ज़्यादा खपत'], pTopS: ['{0}, top 8', '{0}, टॉप 8'], rMonths: ['Months (from – to)', 'महीने (से – तक)'],
+  viewOnlyMsg: ['This phone has a view-only PIN. Entries are not allowed.', 'इस फ़ोन में सिर्फ़ देखने वाला PIN है, एंट्री नहीं हो सकती।'],
   askPin: ['Enter the PIN to change the connection:', 'कनेक्शन बदलने के लिए PIN डालें:'], wrongPin: ['Wrong PIN', 'PIN गलत है'], saveCheck: ['Save & test', 'सेव करें और जाँचें'],
   phoneData: ['Data on this phone', 'इस फ़ोन का डेटा'], syncNow: ['🔄 Sync now', '🔄 अभी सिंक करें'],
   devInfo: ['Device: <b>{0}</b> · Pending: <b>{1}</b> · Last sync: <b>{2}</b>', 'डिवाइस: <b>{0}</b> · सिंक बाकी: <b>{1}</b> · आख़िरी सिंक: <b>{2}</b>'],
@@ -501,6 +532,7 @@ function applyLang() {
   if (typeof bulkUi === 'function') bulkUi();
   render();
   if (lastReport) renderReport(lastReport);
+  if (typeof markPeriodButtons === 'function' && $('pFrom').options.length) markPeriodButtons();
 }
 function setLang(l) {
   LANG = l; try { localStorage.setItem('fuel_lang', JSON.stringify(l)); } catch (e) {}
@@ -668,6 +700,7 @@ function makeOp(type, data) {
   return { id: newId({ receipt: 'R', issue: 'I', void: 'V', asset: 'A' }[type]), type: type, ts: nowTs(), data: data };
 }
 function addOps(ops) {
+  if (cfg.role === 'view') { toast(tm('viewOnlyMsg'), true); return false; }
   const before = queue.length;
   queue.push.apply(queue, ops);
   if (!save(K.queue, queue)) { queue.length = before; return false; }
@@ -705,7 +738,14 @@ async function trySync(manual) {
       const batch = queue.slice(0, 25);
       const res = await api(batch.length ? 'sync' : 'init', batch.length ? { ops: batch } : {});
       const handled = batch.length ? handleResults(res.results) : 0;
+      if (handled) periodRep = null;
       base = res.init; save(K.base, base);
+      if (res.role && res.role !== cfg.role) {
+        const first = !cfg.role;
+        cfg.role = res.role; save(K.cfg, cfg);
+        if (res.role === 'view' && first && LANG !== 'en') { LANG = 'en'; try { localStorage.setItem('fuel_lang', JSON.stringify('en')); } catch (e) {} applyLang(); }
+        applyRole();
+      }
       lastSync = nowTs(); save(K.last, lastSync);
       if (!queue.length || handled === 0) break;
       setStatus();
@@ -768,7 +808,7 @@ function trendChart(id, labels, direct, indirect, rec, names) {
   mkChart(id, {
     type: 'bar',
     data: { labels: labels.map(shortDate), datasets: [
-      { type: 'line', label: names[0], data: rec, borderColor: COL.rec, backgroundColor: 'rgba(16,185,129,.12)', fill: true, tension: .3, cubicInterpolationMode: 'monotone', pointRadius: 2, borderWidth: 2, order: 0 },
+      { type: 'line', label: names[0], data: rec, borderColor: COL.rec, backgroundColor: 'rgba(16,185,129,.12)', fill: labels.length > 12, pointRadius: labels.length > 12 ? 2 : 4, tension: .3, cubicInterpolationMode: 'monotone', borderWidth: 2, order: 0 },
       { type: 'bar', label: names[1], data: direct, backgroundColor: COL.Direct, borderRadius: 4, stack: 's', order: 1 },
       { type: 'bar', label: names[2], data: indirect, backgroundColor: COL.Indirect, borderRadius: 4, stack: 's', order: 1 }
     ] },
@@ -847,6 +887,12 @@ function renderDash() {
       <div class="bar"><i style="width:${w}%;background:${col}"></i></div></div>`;
   }).join('');
 
+  if (!isThisMonth()) {
+    const rep = periodRep && periodRep.key === pKey() ? periodRep.data : null;
+    if (rep) { renderPeriod(rep); renderRecent(); return; }
+    loadPeriod();
+  }
+  setPeriodHeads(null);
   const rec = m.rec.Diesel + m.rec.Petrol, dir = m.Direct.Diesel + m.Direct.Petrol, ind = m.Indirect.Diesel + m.Indirect.Petrol, tot = dir + ind;
   $('monthKpis').innerHTML = [
     { k: 'monthRec', v: rec, s: 'Diesel ' + nf(m.rec.Diesel) + ' · Petrol ' + nf(m.rec.Petrol), c: COL.rec },
@@ -866,7 +912,10 @@ function renderDash() {
     .sort((a, b) => b.q - a.q).slice(0, 8);
   hbar('cTop', top.map(x => narrow ? x.c : x.c + (x.a ? ' · ' + x.a.name : '')).map(s => s.length > 28 ? s.slice(0, 27) + '…' : s),
     top.map(x => x.q), top.map(x => COL[catOf(x.a)]));
+  renderRecent();
+}
 
+function renderRecent() {
   $('recent').innerHTML = S.recent.length ? S.recent.map(r => `
     <div class="entry">
       <span class="badge ${r.kind}">${esc(ts(r.kind === 'IN' ? 'bIn' : 'bOut'))}</span>
@@ -876,6 +925,108 @@ function renderDash() {
       <button class="x" title="${esc(t('voidTip'))}" data-kind="${r.kind}" data-id="${esc(r.id)}" onclick="voidIt(this)">✕</button>
     </div>`).join('') : `<span class="muted">${th('noEntries')}</span>`;
 }
+
+/* ================= Period filter (dashboard) ================= */
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const ym = d => d.getFullYear() + '-' + pad(d.getMonth() + 1);
+const ymLabel = k => MONTHS[+k.slice(5, 7) - 1] + ' ' + k.slice(0, 4);
+const lastDay = k => { const d = new Date(+k.slice(0, 4), +k.slice(5, 7), 0); const t = new Date(); return fmt(d > t ? t : d); };
+const FIRST_MONTH = '2026-05';
+function monthList() {
+  const out = []; const now = new Date(); let d = new Date(+FIRST_MONTH.slice(0, 4), +FIRST_MONTH.slice(5, 7) - 1, 1);
+  if (d > now) d = new Date(now.getFullYear(), now.getMonth(), 1);
+  while (d <= now) { out.push(ym(d)); d = new Date(d.getFullYear(), d.getMonth() + 1, 1); }
+  return out;
+}
+let period = load('fuel_period', null), periodRep = null, periodBusy = '';
+function curMonth() { return ym(new Date()); }
+function getPeriod() {
+  const L = monthList(), c = curMonth();
+  let f = period && period.from, t = period && period.to;
+  if (L.indexOf(f) < 0) f = c; if (L.indexOf(t) < 0) t = c; if (f > t) { const x = f; f = t; t = x; }
+  return { from: f, to: t };
+}
+const isThisMonth = () => { const p = getPeriod(), c = curMonth(); return p.from === c && p.to === c; };
+const pKey = () => { const p = getPeriod(); return p.from + '_' + p.to; };
+const pText = () => { const p = getPeriod(); return p.from === p.to ? ymLabel(p.from) : ymLabel(p.from) + ' – ' + ymLabel(p.to); };
+function fillPeriodPickers() {
+  const L = monthList(), p = getPeriod();
+  const opts = L.map(k => `<option value="${k}">${ymLabel(k)}</option>`).join('');
+  ['pFrom', 'rmFrom'].forEach(id => { $(id).innerHTML = opts; }); ['pTo', 'rmTo'].forEach(id => { $(id).innerHTML = opts; });
+  $('pFrom').value = p.from; $('pTo').value = p.to;
+  const rf = ($('rFrom').value || '').slice(0, 7), rt = ($('rTo').value || '').slice(0, 7);
+  $('rmFrom').value = L.indexOf(rf) >= 0 ? rf : p.from; $('rmTo').value = L.indexOf(rt) >= 0 ? rt : p.to;
+}
+function setPeriod(f, t) {
+  if (f > t) { const x = f; f = t; t = x; }
+  period = { from: f, to: t }; save('fuel_period', period);
+  $('pFrom').value = f; $('pTo').value = t;
+  markPeriodButtons();
+  renderDash();
+}
+function markPeriodButtons() {
+  const L = monthList(), c = curMonth(), p = getPeriod(), prev = L[L.indexOf(c) - 1] || c;
+  const m = { this: [c, c], last: [prev, prev], 3: [L[Math.max(0, L.length - 3)], c], all: [L[0], c] };
+  document.querySelectorAll('#periodBar [data-p]').forEach(b => b.classList.toggle('on', m[b.dataset.p][0] === p.from && m[b.dataset.p][1] === p.to));
+  $('periodBar').classList.toggle('on', !isThisMonth());
+  $('pStatus').textContent = isThisMonth() ? '' : ts('pShowing', pText());
+}
+function setPeriodHeads(label) {
+  if (!label) {
+    $('hTrend').innerHTML = th('c30'); $('hTrendS').innerHTML = th('c30s');
+    $('hCat').innerHTML = th('cMonth'); $('hCatS').innerHTML = th('cMonthS');
+    $('hTop').innerHTML = th('cTop'); $('hTopS').innerHTML = th('cTopS');
+  } else {
+    $('hTrend').innerHTML = th('pTrend'); $('hTrendS').textContent = label + ' · ' + U();
+    $('hCat').innerHTML = th('pCat'); $('hCatS').textContent = label;
+    $('hTop').innerHTML = th('pTop'); $('hTopS').textContent = ts('pTopS', label);
+  }
+}
+async function loadPeriod() {
+  const key = pKey();
+  if (periodBusy === key) return;
+  if (!cfg.url) { $('pStatus').textContent = ts('pNeedNet'); return; }
+  periodBusy = key; $('pStatus').textContent = ts('pLoading', pText());
+  const p = getPeriod();
+  try {
+    const res = await api('report', { params: { from: p.from + '-01', to: lastDay(p.to) } });
+    if (key === pKey()) { periodRep = { key: key, data: res.report }; markPeriodButtons(); renderPeriod(res.report); }
+  } catch (e) {
+    if (key === pKey()) { $('pStatus').textContent = e.net ? ts('pNeedNet') : e.message; }
+  } finally { if (periodBusy === key) periodBusy = ''; }
+}
+function renderPeriod(r) {
+  const T = r.totals, label = pText();
+  setPeriodHeads(label);
+  const sumF = (a, f) => a.reduce((x, m) => x + (m.fuel === f ? m.totalRec : 0), 0);
+  const conF = (a, f) => a.reduce((x, m) => x + (m.fuel === f ? m.consumed : 0), 0);
+  $('monthKpis').innerHTML = [
+    { k: 'pRecv', v: T.received, s: label + ' · ' + T.deliveries + ' DN · Diesel ' + nf(sumF(r.movement, 'Diesel')) + (sumF(r.movement, 'Petrol') ? ' · Petrol ' + nf(sumF(r.movement, 'Petrol')) : ''), c: COL.rec },
+    { k: 'pCons', v: T.consumed, s: label + ' · Diesel ' + nf(conF(r.movement, 'Diesel')) + (conF(r.movement, 'Petrol') ? ' · Petrol ' + nf(conF(r.movement, 'Petrol')) : ''), c: '#15171c' },
+    { k: 'direct', v: T.direct, s: ts('share', pct(T.direct, T.consumed)), c: COL.Direct },
+    { k: 'indirect', v: T.indirect, s: ts('share', pct(T.indirect, T.consumed)), c: COL.Indirect }
+  ].map(x => `<div class="kpi" style="--c:${x.c}"><div class="t">${th(x.k)}</div><div class="v">${nf(x.v)} <small>${U()}</small></div><div class="s">${esc(x.s)}</div></div>`).join('');
+  const nm = [t('lRec'), t('lDirect'), t('lIndirect')];
+  trendChart('cTrend', r.trend.map(x => x.label), r.trend.map(x => x.Direct), r.trend.map(x => x.Indirect), r.trend.map(x => x.rec), nm);
+  donut('cCat', [nm[1], nm[2]], [r2(T.direct), r2(T.indirect)], [COL.Direct, COL.Indirect], L(T.consumed), label);
+  const narrow = window.innerWidth < 600, top = r.byAsset.slice(0, 8);
+  hbar('cTop', top.map(a => narrow ? a.code : (a.code + ' · ' + a.name)).map(s => s.length > 28 ? s.slice(0, 27) + '…' : s),
+    top.map(a => a.qty), top.map(a => COL[a.category] || COL.Indirect));
+}
+$('pFrom').onchange = () => setPeriod($('pFrom').value, $('pTo').value);
+$('pTo').onchange = () => setPeriod($('pFrom').value, $('pTo').value);
+document.querySelectorAll('#periodBar [data-p]').forEach(b => b.onclick = () => {
+  const L = monthList(), c = curMonth(), prev = L[L.indexOf(c) - 1] || c;
+  const m = { this: [c, c], last: [prev, prev], 3: [L[Math.max(0, L.length - 3)], c], all: [L[0], c] }[b.dataset.p];
+  setPeriod(m[0], m[1]);
+});
+function reportMonths() {
+  let f = $('rmFrom').value, t = $('rmTo').value;
+  if (f > t) { const x = f; f = t; t = x; $('rmFrom').value = f; $('rmTo').value = t; }
+  $('rFrom').value = f + '-01'; $('rTo').value = lastDay(t);
+  document.querySelectorAll('#quick button').forEach(b => b.classList.remove('on'));
+}
+$('rmFrom').onchange = reportMonths; $('rmTo').onchange = reportMonths;
 
 function renderPickers() {
   $('vendorList').innerHTML = S.vendors.map(v => `<option value="${esc(v)}">`).join('');
@@ -1013,6 +1164,14 @@ $('fSet').onsubmit = async e => {
   await trySync(true);
   if (netOk && lastSync) { lockConn(); showTab('dash'); }
 };
+/* view-only PIN (बॉस): एंट्री वाले टैब और बटन छुपाना */
+function applyRole() {
+  const v = cfg.role === 'view';
+  document.body.classList.toggle('viewonly', v);
+  $('viewBadge').hidden = !v;
+  const on = document.querySelector('nav button.on');
+  if (v && on && ['rec', 'iss', 'bulk', 'mst'].indexOf(on.dataset.t) >= 0) showTab('dash');
+}
 /* URL और PIN छुपाकर रखना: बदलने के लिए PIN चाहिए */
 function lockConn() {
   const locked = !!(cfg.url && cfg.pin);
@@ -1339,7 +1498,10 @@ $('btnExport').onclick = async () => {
   const nm = load(K.name, '');
   document.querySelectorAll('.myname').forEach(i => i.value = nm);
   lockConn();
+  applyRole();
   setRange('month');
+  fillPeriodPickers();
+  markPeriodButtons();
   applyLang();
   if (!cfg.url) showTab('set');
 
