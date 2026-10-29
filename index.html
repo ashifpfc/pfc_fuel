@@ -297,6 +297,8 @@
     <div class="grid">
       <label><span data-i="date"></span> <input type="date" name="date" required></label>
       <label><span data-i="outVeh"></span> <select name="assetCode" id="outAsset" required></select></label>
+      <label class="outNew" style="display:none"><span data-i="outNewCode"></span> <input id="outNewCode" data-ip="outNewCodePh" autocapitalize="characters"></label>
+      <label class="outNew" style="display:none"><span data-i="outNewName"></span> <input id="outNewName" data-ip="outNewNamePh"></label>
       <label><span data-i="outDriver"></span> <input name="driver" id="outDriver" required></label>
       <label><span data-i="outLitres"></span> <input type="number" step="0.01" min="0" name="litres" id="outLitres" required inputmode="decimal"></label>
       <label><span data-i="outAmount"></span> <input type="number" step="0.01" min="0" name="amount" id="outAmount" required inputmode="decimal"></label>
@@ -436,6 +438,7 @@
     <p id="setInfo" class="muted"></p>
     <button class="sec" id="btnReload"><span data-i="syncNow"></span></button>
   </div>
+  <p class="muted" style="text-align:center;font-size:12px;margin:8px 0 0">App version <b id="appVer"></b></p>
 </section>
 </main>
 
@@ -522,7 +525,12 @@ const D = {
   connected: ['Connected to Google Sheet', 'Google Sheet से जुड़ा है'], changeConn: ['🔒 Change connection', '🔒 कनेक्शन बदलें'],
   tabOut: ['⛽ Outside Petrol', '⛽ बाहर पेट्रोल'], outTitle: ['⛽ Petrol filled outside (paid at a pump)', '⛽ बाहर पंप से पेट्रोल भरवाया'],
   outHelp: ['Petrol only. The driver brings the paper receipt; the person who paid enters it here. Store stock does not change; it counts in the vehicle\'s consumption.', 'सिर्फ़ पेट्रोल। ड्राइवर कागज़ की रसीद लाता है, पैसा देने वाला उसे देखकर यहाँ एंट्री करता है। स्टोर का स्टॉक नहीं घटता; गाड़ी की खपत में जुड़ता है।'],
-  outRcpt: ['Receipt No.', 'रसीद नंबर'], outRcptNeed: ['Enter the receipt number', 'रसीद नंबर भरें'],
+  outRcpt: ['Receipt No.', 'रसीद नंबर'], outAddVeh: ['➕ New petrol vehicle', '➕ नई पेट्रोल गाड़ी जोड़ें'],
+  outNewCode: ['Vehicle No. / Code', 'गाड़ी नंबर / कोड'], outNewCodePh: ['e.g. AD 12345', 'जैसे AD 12345'],
+  outNewName: ['Vehicle name / model', 'गाड़ी का नाम / मॉडल'], outNewNamePh: ['e.g. Nissan Sunny', 'जैसे Nissan Sunny'],
+  outNewNeed: ['Enter the new vehicle number and name', 'नई गाड़ी का नंबर और नाम भरें'],
+  outNewDiesel: ['{0} is already in the list as a {1} vehicle', '{0} पहले से लिस्ट में {1} गाड़ी है'],
+  outNoPetrol: ['No petrol vehicle in the list yet: choose "➕ New petrol vehicle"', 'लिस्ट में अभी कोई पेट्रोल गाड़ी नहीं है: "➕ नई पेट्रोल गाड़ी जोड़ें" चुनें'], outRcptNeed: ['Enter the receipt number', 'रसीद नंबर भरें'],
   outRcptDup: ['Receipt No. {0} is already entered ({1}, {2})', 'रसीद नंबर {0} पहले से दर्ज है ({1}, {2})'],
   outCancel: ['✕ Cancel entry', '✕ एंट्री रद्द करें'], outCancelAsk: ['Reason for cancelling this entry:', 'एंट्री रद्द करने का कारण:'],
   outCount: ['Fills this month', 'इस महीने कितनी बार'], outRcptShort: ['Rcpt {0}', 'रसीद {0}'],
@@ -1028,27 +1036,33 @@ function renderRecent() {
 }
 
 /* ================= Outside petrol ================= */
+const APP_VER = 'v11';
 const LPG = 3.78541;   // litres per US gallon
 let outFilter = 'all';
-function outVehicles() {
-  const v = S.assets.filter(a => a.type === 'Vehicle' || a.fuel === 'Petrol');
-  return v.filter(a => a.fuel === 'Petrol').concat(v.filter(a => a.fuel !== 'Petrol'));
+function outVehicles() { return S.assets.filter(a => a.fuel === 'Petrol'); }
+function outNewToggle() {
+  const on = $('outAsset').value === '__new';
+  document.querySelectorAll('#fOut .outNew').forEach(x => x.style.display = on ? '' : 'none');
 }
 function outInfoUpdate() {
   const a = assetBy($('outAsset').value), lit = num($('outLitres').value), amt = num($('outAmount').value);
   const bits = [];
-  if (a) { bits.push(lastTxt(a)); if (a.fuel && a.fuel !== 'Petrol') bits.push('⚠ ' + ts('outDieselWarn')); }
+  if (a) bits.push(lastTxt(a));
+  else if (!outVehicles().length && $('outAsset').value !== '__new') bits.push(ts('outNoPetrol'));
   if (lit > 0 && amt > 0) bits.push(ts('outRate', (amt / lit).toFixed(2)));
   $('outInfo').textContent = bits.join(' · ');
 }
 ['outAsset', 'outLitres', 'outAmount'].forEach(id => { $(id).addEventListener('input', outInfoUpdate); $(id).addEventListener('change', outInfoUpdate); });
+$('outAsset').addEventListener('change', outNewToggle);
 function renderOutside() {
   const o = S.outside || { rows: [], pendingAll: 0 };
   const keep = $('outAsset').value, vs = outVehicles();
   $('outAsset').innerHTML = `<option value="">${esc(t('choose'))}</option>` +
-    vs.map(a => `<option value="${esc(a.code)}">${esc(a.code)} – ${esc(a.name)}${a.fuel === 'Petrol' ? '' : ' (' + esc(a.fuel) + ')'}</option>`).join('');
+    vs.map(a => `<option value="${esc(a.code)}">${esc(a.code)} – ${esc(a.name)}</option>`).join('') +
+    `<option value="__new">${esc(t('outAddVeh'))}</option>`;
   $('outAsset').value = keep;
-  outInfoUpdate();
+  if ($('outAsset').value !== keep) $('outAsset').value = '';
+  outNewToggle(); outInfoUpdate();
   const ms = monthStart(), td = today();
   const mon = o.rows.filter(r => r.date >= ms && r.date <= td);
   const sum = (a, k) => a.reduce((x, r) => x + num(r[k]), 0);
@@ -1087,6 +1101,15 @@ $('fOut').onsubmit = e => {
   e.preventDefault();
   const f = formData(e.target);
   if (!f.assetCode) return toast(tm('pickAsset'), true);
+  let newAsset = null;
+  if (f.assetCode === '__new') {
+    const code = $('outNewCode').value.trim().toUpperCase(), name = $('outNewName').value.trim();
+    if (!code || !name) return toast(tm('outNewNeed'), true);
+    const ex = assetBy(code);
+    if (ex && ex.fuel !== 'Petrol') return toast(tm('outNewDiesel', code, ex.fuel), true);
+    if (!ex) newAsset = { code: code, name: name, type: 'Vehicle', fuel: 'Petrol', meter: 'KM', location: 'Site', category: 'Direct' };
+    f.assetCode = code;
+  }
   if (!(num(f.litres) > 0)) return toast(tm('qtyErr'), true);
   f.receiptNo = (f.receiptNo || '').trim();
   if (!f.receiptNo) return toast(tm('outRcptNeed'), true);
@@ -1096,9 +1119,10 @@ $('fOut').onsubmit = e => {
   if (!meterOk(f.assetCode, f.meter)) return;
   try { localStorage.setItem('fuel_driver', JSON.stringify(f.driver)); localStorage.setItem('fuel_paidby', JSON.stringify(f.paidBy)); } catch (x) {}
   const admin = (cfg.role || 'admin') === 'admin';
-  if (addOp('outside', f)) {
+  if (addOps(newAsset ? [makeOp('asset', newAsset), makeOp('outside', f)] : [makeOp('outside', f)])) {
     savedMsg(tm('outSaved', f.litres));
     resetFields(e.target, ['litres', 'amount', 'meter', 'receiptNo', 'remarks']);
+    if (newAsset || f.assetCode) { $('outNewCode').value = ''; $('outNewName').value = ''; renderOutside(); $('outAsset').value = f.assetCode; outNewToggle(); outInfoUpdate(); }
   }
 };
 
@@ -1709,7 +1733,12 @@ $('btnExport').onclick = async () => {
   applyLang();
   if (!cfg.url) showTab('set');
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  $('appVer').textContent = APP_VER;
+  if ('serviceWorker' in navigator) {
+    const had = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !window._swReloaded) { window._swReloaded = true; location.reload(); } });
+    navigator.serviceWorker.register('sw.js').then(r => r.update()).catch(() => {});
+  }
   window.addEventListener('online', () => { netOk = true; trySync(); });
   window.addEventListener('offline', () => { netOk = false; setStatus(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) trySync(); });
