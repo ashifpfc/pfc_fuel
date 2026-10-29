@@ -156,6 +156,27 @@
   .period.on { border-color:var(--acc); box-shadow:0 0 0 3px rgba(245,165,36,.18); }
   .vbadge { background:#f5a524; color:#15171c; font-weight:700; font-size:12px; border-radius:20px; padding:6px 10px; white-space:nowrap; }
   /* बॉस (view-only PIN): सिर्फ़ डैशबोर्ड और रिपोर्ट */
+  body.driveronly nav button:not([data-t=out]):not([data-t=set]), body.driveronly #periodBar { display:none !important; }
+  body.viewonly #fOut, body.driveronly .vbtn { display:none !important; }
+  .filebtn { flex-direction:row !important; }
+  @media (max-width: 600px) {
+    body.driveronly .htitle, body.viewonly .htitle { display:none; }
+    .vbadge { padding:5px 8px; font-size:11px; }
+    #langBtn { padding:6px 8px; }
+    header { gap:8px; }
+  }
+  .photo-row { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+  #outPrev { max-height:90px; border-radius:8px; border:1px solid var(--line); }
+  .st { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; }
+  .st.Pending { background:#fff1c2; color:#8a5a00; } .st.Verified { background:#d7f5e6; color:#0b6b3f; } .st.Rejected { background:#fde2e1; color:#a01b14; }
+  .orow { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px 12px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .orow:last-child { border-bottom:0; }
+  .orow .m div:first-child { font-weight:600; }
+  .orow .m div + div { font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .orow .r { text-align:right; white-space:nowrap; }
+  .orow .r b { font-size:16px; }
+  .orow .acts { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:8px; }
+  .orow a { color:var(--ink2); }
   body.viewonly nav button[data-t=rec], body.viewonly nav button[data-t=iss], body.viewonly nav button[data-t=bulk],
   body.viewonly nav button[data-t=mst], body.viewonly .x, body.viewonly #btnExport, body.viewonly .alert.q { display:none !important; }
   #langBtn { border:1px solid rgba(255,255,255,.22); background:rgba(255,255,255,.08); color:#fff; border-radius:20px; padding:7px 11px; font-size:12px; cursor:pointer; white-space:nowrap; }
@@ -179,6 +200,7 @@
   <button data-t="dash" class="on"><span data-i="tabDash"></span></button>
   <button data-t="rec"><span data-i="tabRec"></span></button>
   <button data-t="iss"><span data-i="tabIss"></span></button>
+  <button data-t="out"><span data-i="tabOut"></span></button>
   <button data-t="bulk"><span data-i="tabBulk"></span></button>
   <button data-t="rep"><span data-i="tabRep"></span></button>
   <button data-t="mst"><span data-i="tabMst"></span></button>
@@ -264,6 +286,40 @@
     </div>
     <button class="primary" type="submit" data-i="save"></button>
   </form>
+</section>
+
+<!-- ============ OUTSIDE PETROL ============ -->
+<section id="out" class="tab">
+  <div class="kpis" id="outKpis"></div>
+  <form id="fOut" class="card" autocomplete="off">
+    <h3 data-i="outTitle"></h3>
+    <p class="muted" style="margin:-4px 0 12px;font-size:13px" data-i="outHelp"></p>
+    <div class="grid">
+      <label><span data-i="date"></span> <input type="date" name="date" required></label>
+      <label><span data-i="outVeh"></span> <select name="assetCode" id="outAsset" required></select></label>
+      <label><span data-i="outDriver"></span> <input name="driver" id="outDriver" required></label>
+      <label><span data-i="outLitres"></span> <input type="number" step="0.01" min="0" name="litres" id="outLitres" required inputmode="decimal"></label>
+      <label><span data-i="outAmount"></span> <input type="number" step="0.01" min="0" name="amount" id="outAmount" required inputmode="decimal"></label>
+      <label><span data-i="outRcpt"></span> <input name="receiptNo" id="outRcpt" required autocapitalize="characters"></label>
+      <label><span data-i="mKm"></span> <input type="number" step="1" min="0" name="meter" id="outMeter" required inputmode="numeric"></label>
+      <label><span data-i="outPaidBy"></span> <input name="paidBy" id="outPaidBy"></label>
+      <label><span data-i="outStation"></span> <input name="station" data-ip="outStationPh"></label>
+    </div>
+    <div class="info" id="outInfo"></div>
+    <div class="grid" style="margin-top:12px">
+      <label><span data-i="remarks"></span> <input name="remarks"></label>
+    </div>
+    <button class="primary" type="submit" data-i="save"></button>
+  </form>
+  <div class="card">
+    <h3><span data-i="outList"></span></h3>
+    <div class="quick" id="outFilter">
+      <button type="button" data-f="all" class="on"><span data-i="all"></span></button>
+      <button type="button" data-f="Verified"><span data-i="stVerified"></span></button>
+      <button type="button" data-f="Rejected"><span data-i="stRejected"></span></button>
+    </div>
+    <div id="outList"></div>
+  </div>
 </section>
 
 <!-- ============ BULK ============ -->
@@ -464,6 +520,25 @@ const D = {
   chipD: ['Direct', 'डायरेक्ट'], chipI: ['Indirect', 'इनडायरेक्ट'],
   connectTitle: ['⚙ Connect to Google Sheet', '⚙ Google Sheet से जोड़ें'],
   connected: ['Connected to Google Sheet', 'Google Sheet से जुड़ा है'], changeConn: ['🔒 Change connection', '🔒 कनेक्शन बदलें'],
+  tabOut: ['⛽ Outside Petrol', '⛽ बाहर पेट्रोल'], outTitle: ['⛽ Petrol filled outside (paid at a pump)', '⛽ बाहर पंप से पेट्रोल भरवाया'],
+  outHelp: ['Petrol only. The driver brings the paper receipt; the person who paid enters it here. Store stock does not change; it counts in the vehicle\'s consumption.', 'सिर्फ़ पेट्रोल। ड्राइवर कागज़ की रसीद लाता है, पैसा देने वाला उसे देखकर यहाँ एंट्री करता है। स्टोर का स्टॉक नहीं घटता; गाड़ी की खपत में जुड़ता है।'],
+  outRcpt: ['Receipt No.', 'रसीद नंबर'], outRcptNeed: ['Enter the receipt number', 'रसीद नंबर भरें'],
+  outRcptDup: ['Receipt No. {0} is already entered ({1}, {2})', 'रसीद नंबर {0} पहले से दर्ज है ({1}, {2})'],
+  outCancel: ['✕ Cancel entry', '✕ एंट्री रद्द करें'], outCancelAsk: ['Reason for cancelling this entry:', 'एंट्री रद्द करने का कारण:'],
+  outCount: ['Fills this month', 'इस महीने कितनी बार'], outRcptShort: ['Rcpt {0}', 'रसीद {0}'],
+  outVeh: ['Vehicle', 'गाड़ी'], outDriver: ['Driver name', 'ड्राइवर का नाम'], outLitres: ['Litres filled', 'कितने लीटर भरा'],
+  outAmount: ['Amount paid (AED)', 'कितने दिरहम दिए (AED)'], outPaidBy: ['Paid by', 'पैसा किसने दिया'], outStation: ['Petrol station', 'पेट्रोल पंप'],
+  outStationPh: ['e.g. ADNOC Mussafah', 'जैसे ADNOC Mussafah'],
+  outList: ['Outside petrol entries', 'बाहर पेट्रोल की एंट्री'], stPending: ['Pending', 'बाकी (Pending)'], stVerified: ['Verified', 'Verified'], stRejected: ['Cancelled', 'रद्द'],
+  outRate: ['Rate: {0} AED / litre', 'रेट: {0} AED / लीटर'], outDieselWarn: ['This vehicle is set as Diesel in the master list', 'मास्टर लिस्ट में ये गाड़ी Diesel की है'],
+  outVerify: ['✓ Verify', '✓ Verify'], outReject: ['✕ Reject', '✕ Reject'],
+  outNone: ['No entries yet.', 'अभी कोई एंट्री नहीं।'], outBy: ['by {0}', '{0} ने'], outVerifiedBy: ['verified by {0}', '{0} ने verify किया'],
+  outMonth: ['Outside petrol this month', 'इस महीने बाहर पेट्रोल'], outPendingK: ['Waiting for verification', 'Verify होना बाकी'], outAed: ['Paid this month', 'इस महीने भुगतान'],
+  outPendingAlert: ['{0} outside petrol entries are waiting for your verification.', '{0} बाहर पेट्रोल की एंट्री आपके verify का इंतज़ार कर रही हैं।'], outOpen: ['Open', 'खोलें'],
+  outSaved: ['{0} L petrol saved ✓', '{0} L पेट्रोल सेव ✓'], outRejectAsk: ['Reason for rejecting:', 'Reject करने का कारण:'],
+  outNameAsk: ['Your name:', 'आपका नाम:'], outVerified: ['Entry verified ✓', 'एंट्री verify हो गई ✓'], outRejected: ['Entry cancelled', 'एंट्री रद्द हो गई'],
+  driverMsg: ['This phone has a driver PIN: only outside petrol entries are allowed.', 'इस फ़ोन में ड्राइवर PIN है: सिर्फ़ बाहर पेट्रोल की एंट्री हो सकती है।'],
+  dOut: ['Outside petrol {0} L → {1} ({2})', 'बाहर पेट्रोल {0} L → {1} ({2})'], dVer: ['{0}: {1}', '{0}: {1}'],
   period: ['📅 Show period', '📅 अवधि चुनें'], pFrom: ['From', 'से'], pTo: ['To', 'तक'],
   pThis: ['This month', 'इस महीने'], pLast: ['Last month', 'पिछला महीना'], p3: ['Last 3 months', 'पिछले 3 महीने'], pAll: ['All data', 'पूरा डेटा'],
   pLoading: ['Loading {0}…', '{0} लोड हो रहा है…'], pShowing: ['Showing {0}. Stock above is always today\'s stock.', '{0} दिख रहा है। ऊपर का स्टॉक हमेशा आज का है।'],
@@ -551,7 +626,7 @@ function save(k, v) {
   catch (e) { toast(tm('saveFail', e.message), true); return false; }
 }
 
-const EMPTY = { assets: [], vendors: [], stock: { Diesel: 0, Petrol: 0 }, today: '', todaySum: {}, recent: [], lastMeter: {}, dash: null };
+const EMPTY = { assets: [], vendors: [], stock: { Diesel: 0, Petrol: 0 }, today: '', todaySum: {}, recent: [], lastMeter: {}, dash: null, outside: null };
 let cfg = load(K.cfg, { url: '', pin: '' });
 let base = load(K.base, null) || EMPTY;
 let queue = load(K.queue, []);
@@ -614,6 +689,7 @@ function view() {
   const td = today();
   s.stock = s.stock || {}; s.todaySum = s.todaySum || {}; s.lastMeter = s.lastMeter || {}; s.recent = s.recent || [];
   s.dash = s.dash || { trend: {}, month: blankMonth(), monthStart: monthStart(), avg30: {} };
+  s.outside = s.outside || { rows: [], pendingAll: 0 };
   if (s.dash.monthStart !== monthStart()) { s.dash.month = blankMonth(); s.dash.monthStart = monthStart(); }
   if (s.today !== td) { s.today = td; s.todaySum = {}; }
   FUELS.forEach(f => { if (s.stock[f] == null) s.stock[f] = 0; if (!s.todaySum[f]) s.todaySum[f] = { in: 0, out: 0 }; });
@@ -675,6 +751,25 @@ function applyOp(s, op) {
       }
       s.recent.splice(i, 1);
     }
+  } else if (op.type === 'outside') {
+    const admin = (cfg.role || 'admin') === 'admin';
+    const a = s.assets.find(x => x.code === d.assetCode) || { name: '' };
+    const lit = num(d.litres), gal = lit / LPG;
+    s.outside.rows.unshift({ id: op.id, ts: op.ts, date: d.date, asset: d.assetCode, name: a.name, litres: lit, gal: gal, amount: num(d.amount),
+      rate: lit ? num(d.amount) / lit : 0, meter: d.meter, driver: d.driver, paidBy: d.paidBy, station: d.station, receiptNo: d.receiptNo, remarks: d.remarks,
+      status: admin ? 'Verified' : 'Pending', verifiedBy: admin ? (d.paidBy || '') : '', pending: true });
+    if (admin) { addCons(s, d.date, d.assetCode, 'Petrol', gal); if (d.date === td) s.todaySum.Petrol.out += gal; }
+    else s.outside.pendingAll++;
+    if (d.meter !== '' && (!s.lastMeter[d.assetCode] || d.date >= s.lastMeter[d.assetCode].date)) s.lastMeter[d.assetCode] = { reading: num(d.meter), date: d.date };
+  } else if (op.type === 'verify') {
+    const r = s.outside.rows.find(x => x.id === d.id);
+    if (r && r.status !== d.decision) {
+      if (r.status === 'Pending') s.outside.pendingAll = Math.max(0, s.outside.pendingAll - 1);
+      const g = num(r.gal) || num(r.litres) / LPG;
+      if (d.decision === 'Verified') { addCons(s, r.date, r.asset, 'Petrol', g); if (r.date === td) s.todaySum.Petrol.out += g; }
+      else if (r.status === 'Verified') { addCons(s, r.date, r.asset, 'Petrol', -g); if (r.date === td) s.todaySum.Petrol.out -= g; }
+      r.status = d.decision; r.verifiedBy = d.by; r.pending = true;
+    }
   } else if (op.type === 'asset') {
     if (!s.assets.some(a => a.code === d.code))
       s.assets.push({ code: d.code, name: d.name, type: d.type, fuel: d.fuel, meter: d.meter || 'KM', location: d.location, category: d.category });
@@ -687,6 +782,8 @@ function describe(op) {
   if (op.type === 'issue') return ts('dIss', d.qty, d.assetCode, d.date);
   if (op.type === 'void') return ts('dVoid', d.id);
   if (op.type === 'asset') return ts('dAsset', d.code);
+  if (op.type === 'outside') return ts('dOut', d.litres, d.assetCode, d.date);
+  if (op.type === 'verify') return ts('dVer', d.decision, d.id);
   return op.type;
 }
 /** text under each recent entry, built in the current language */
@@ -697,10 +794,11 @@ function recentInfo(r) {
 
 /* ================= Queue + Sync ================= */
 function makeOp(type, data) {
-  return { id: newId({ receipt: 'R', issue: 'I', void: 'V', asset: 'A' }[type]), type: type, ts: nowTs(), data: data };
+  return { id: newId({ receipt: 'R', issue: 'I', void: 'V', asset: 'A', outside: 'P', verify: 'X' }[type]), type: type, ts: nowTs(), data: data };
 }
 function addOps(ops) {
   if (cfg.role === 'view') { toast(tm('viewOnlyMsg'), true); return false; }
+  if (cfg.role === 'driver' && ops.some(o => o.type !== 'outside')) { toast(tm('driverMsg'), true); return false; }
   const before = queue.length;
   queue.push.apply(queue, ops);
   if (!save(K.queue, queue)) { queue.length = before; return false; }
@@ -850,6 +948,7 @@ function render() {
   renderAlerts();
   renderDash();
   renderPickers();
+  renderOutside();
   $('assetList').innerHTML = table([ts('hCode'), ts('hName'), ts('typeLbl'), ts('hCons'), ts('fuel'), ts('meterLbl'), ts('hLoc'), ts('hLast')],
     S.assets.map(x => [x.code, x.name, x.type, chipCatApp(catOf(x)),
       x.fuel, x.meter, x.location, S.lastMeter[x.code] ? S.lastMeter[x.code].reading + ' (' + S.lastMeter[x.code].date + ')' : '']));
@@ -861,6 +960,8 @@ function renderAlerts() {
   let a = '';
   if (!cfg.url) a += `<div class="alert e">${th('setupFirst')}</div>`;
   if (queue.length) a += `<div class="alert q">${th('queued', queue.length)}</div>`;
+  if ((cfg.role || 'admin') === 'admin' && S.outside && S.outside.pendingAll > 0)
+    a += `<div class="alert w"><div class="row"><span>${th('outPendingAlert', S.outside.pendingAll)}</span><button class="mini" onclick="showTab('out')">${esc(ts('outOpen'))}</button></div></div>`;
   if (errors.length) a += `<div class="alert e"><b>${th('rejected')}</b>` + errors.map((x, i) => `
       <div class="row"><span>${esc(describe(x.op))}<br><small>${esc(sx(x.error))}</small></span>
       <span style="white-space:nowrap"><button class="mini" onclick="retryErr(${i})">${esc(ts('retry'))}</button> <button class="mini" onclick="dropErr(${i})">${esc(ts('remove'))}</button></span></div>`).join('') + `</div>`;
@@ -925,6 +1026,81 @@ function renderRecent() {
       <button class="x" title="${esc(t('voidTip'))}" data-kind="${r.kind}" data-id="${esc(r.id)}" onclick="voidIt(this)">✕</button>
     </div>`).join('') : `<span class="muted">${th('noEntries')}</span>`;
 }
+
+/* ================= Outside petrol ================= */
+const LPG = 3.78541;   // litres per US gallon
+let outFilter = 'all';
+function outVehicles() {
+  const v = S.assets.filter(a => a.type === 'Vehicle' || a.fuel === 'Petrol');
+  return v.filter(a => a.fuel === 'Petrol').concat(v.filter(a => a.fuel !== 'Petrol'));
+}
+function outInfoUpdate() {
+  const a = assetBy($('outAsset').value), lit = num($('outLitres').value), amt = num($('outAmount').value);
+  const bits = [];
+  if (a) { bits.push(lastTxt(a)); if (a.fuel && a.fuel !== 'Petrol') bits.push('⚠ ' + ts('outDieselWarn')); }
+  if (lit > 0 && amt > 0) bits.push(ts('outRate', (amt / lit).toFixed(2)));
+  $('outInfo').textContent = bits.join(' · ');
+}
+['outAsset', 'outLitres', 'outAmount'].forEach(id => { $(id).addEventListener('input', outInfoUpdate); $(id).addEventListener('change', outInfoUpdate); });
+function renderOutside() {
+  const o = S.outside || { rows: [], pendingAll: 0 };
+  const keep = $('outAsset').value, vs = outVehicles();
+  $('outAsset').innerHTML = `<option value="">${esc(t('choose'))}</option>` +
+    vs.map(a => `<option value="${esc(a.code)}">${esc(a.code)} – ${esc(a.name)}${a.fuel === 'Petrol' ? '' : ' (' + esc(a.fuel) + ')'}</option>`).join('');
+  $('outAsset').value = keep;
+  outInfoUpdate();
+  const ms = monthStart(), td = today();
+  const mon = o.rows.filter(r => r.date >= ms && r.date <= td);
+  const sum = (a, k) => a.reduce((x, r) => x + num(r[k]), 0);
+  const ver = mon.filter(r => r.status === 'Verified');
+  $('outKpis').innerHTML = [
+    { k: 'outMonth', v: nf(sum(ver, 'litres')) + ' <small>L</small>', s: ver.length + ' × ' + ts('stVerified'), c: COL.Petrol },
+    { k: 'outAed', v: nf(sum(ver, 'amount')) + ' <small>AED</small>', s: sum(ver, 'litres') ? ts('outRate', (sum(ver, 'amount') / sum(ver, 'litres')).toFixed(2)) : '', c: '#15171c' },
+    o.pendingAll ? { k: 'outPendingK', v: String(o.pendingAll), s: nf(sum(o.rows.filter(r => r.status === 'Pending'), 'litres')) + ' L', c: '#f59e0b' }
+                 : { k: 'outCount', v: String(ver.length), s: ver.length ? nf(sum(ver, 'litres') / ver.length) + ' L avg' : '', c: '#64748b' }
+  ].map(x => `<div class="kpi" style="--c:${x.c}"><div class="t">${th(x.k)}</div><div class="v">${x.v}</div><div class="s">${esc(x.s)}</div></div>`).join('');
+  const admin = (cfg.role || 'admin') === 'admin';
+  const list = o.rows.filter(r => outFilter === 'all' || r.status === outFilter);
+  $('outList').innerHTML = list.length ? list.map(r => `
+    <div class="orow">
+      <div class="m">
+        <div>${esc(r.asset)} – ${esc(r.name)} <span class="st ${esc(r.status)}">${esc(ts('st' + r.status))}</span> ${r.pending ? '<span class="pend">' + esc(ts('notSynced')) + '</span>' : ''}</div>
+        <div>${esc(r.date)} · ${esc(r.driver)} · ${esc(ts('mKm'))}: ${esc(r.meter || '—')}${r.station ? ' · ' + esc(r.station) : ''}${r.paidBy ? ' · ' + esc(ts('outPaidBy')) + ': ' + esc(r.paidBy) : ''}</div>
+        <div>${r.receiptNo ? '🧾 ' + esc(ts('outRcptShort', r.receiptNo)) : ''}${r.remarks ? ' · ' + esc(r.remarks) : ''}</div>
+      </div>
+      <div class="r"><b>${nf(r.litres)} L</b><br><span class="muted">${nf(r.amount)} AED</span></div>
+      ${admin && r.status === 'Pending' ? `<div class="acts vbtn"><button class="mini" style="background:#d7f5e6" onclick="verifyOut('${esc(r.id)}','Verified')">${esc(ts('outVerify'))}</button><button class="mini" style="background:#fde2e1" onclick="verifyOut('${esc(r.id)}','Rejected')">${esc(ts('outReject'))}</button></div>`
+        : admin && r.status === 'Verified' && !r.pending ? `<div class="acts vbtn"><button class="mini" style="background:#fde2e1" onclick="verifyOut('${esc(r.id)}','Rejected')">${esc(ts('outCancel'))}</button></div>` : ''}
+    </div>`).join('') : `<p class="muted">${th('outNone')}</p>`;
+}
+document.querySelectorAll('#outFilter [data-f]').forEach(b => b.onclick = () => {
+  outFilter = b.dataset.f; document.querySelectorAll('#outFilter [data-f]').forEach(x => x.classList.toggle('on', x === b)); renderOutside();
+});
+function verifyOut(id, decision) {
+  let by = load(K.name, '');
+  if (!by) { by = prompt(tm('outNameAsk')); if (by === null) return; by = by.trim(); if (by) save(K.name, by); }
+  let reason = '';
+  if (decision === 'Rejected') { reason = prompt(tm('outCancelAsk')); if (reason === null || !reason.trim()) return; }
+  if (addOp('verify', { id: id, decision: decision, by: by || 'Store', reason: reason })) toast(tm(decision === 'Verified' ? 'outVerified' : 'outRejected'));
+}
+$('fOut').onsubmit = e => {
+  e.preventDefault();
+  const f = formData(e.target);
+  if (!f.assetCode) return toast(tm('pickAsset'), true);
+  if (!(num(f.litres) > 0)) return toast(tm('qtyErr'), true);
+  f.receiptNo = (f.receiptNo || '').trim();
+  if (!f.receiptNo) return toast(tm('outRcptNeed'), true);
+  const dup = ((S.outside || {}).rows || []).find(r => r.status !== 'Rejected' && String(r.receiptNo || '').toUpperCase() === f.receiptNo.toUpperCase()
+    && String(r.station || '').trim().toUpperCase() === String(f.station || '').trim().toUpperCase());
+  if (dup) return toast(tm('outRcptDup', f.receiptNo, dup.date, dup.asset), true);
+  if (!meterOk(f.assetCode, f.meter)) return;
+  try { localStorage.setItem('fuel_driver', JSON.stringify(f.driver)); localStorage.setItem('fuel_paidby', JSON.stringify(f.paidBy)); } catch (x) {}
+  const admin = (cfg.role || 'admin') === 'admin';
+  if (addOp('outside', f)) {
+    savedMsg(tm('outSaved', f.litres));
+    resetFields(e.target, ['litres', 'amount', 'meter', 'receiptNo', 'remarks']);
+  }
+};
 
 /* ================= Period filter (dashboard) ================= */
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1166,11 +1342,14 @@ $('fSet').onsubmit = async e => {
 };
 /* view-only PIN (बॉस): एंट्री वाले टैब और बटन छुपाना */
 function applyRole() {
-  const v = cfg.role === 'view';
+  const v = cfg.role === 'view', dr = cfg.role === 'driver';
   document.body.classList.toggle('viewonly', v);
-  $('viewBadge').hidden = !v;
+  document.body.classList.toggle('driveronly', dr);
+  $('viewBadge').hidden = !(v || dr);
+  $('viewBadge').textContent = dr ? '🚗 Driver' : '👁 View only';
   const on = document.querySelector('nav button.on');
   if (v && on && ['rec', 'iss', 'bulk', 'mst'].indexOf(on.dataset.t) >= 0) showTab('dash');
+  if (dr && on && ['out', 'set'].indexOf(on.dataset.t) < 0) showTab('out');
 }
 /* URL और PIN छुपाकर रखना: बदलने के लिए PIN चाहिए */
 function lockConn() {
@@ -1386,6 +1565,22 @@ const chipCat = c => c ? { html: `<span class="chip ${c}">${c}</span>` } : '';
 const CAT_EN = { Direct: 'Direct (Vehicles)', Indirect: 'Indirect (Generators / Laydown)' };
 const fmtDate = s => { const p = String(s).split('-'); return p.length === 3 ? p[2] + ' ' + ['', 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+p[1]] + ' ' + p[0] : s; };
 
+function outsideReportHtml(d) {
+  const o = d.outside;
+  if (!o || !o.rows.length || d.filters.fuel === 'Diesel') return '';
+  const rate = o.verified.litres ? (o.verified.amount / o.verified.litres).toFixed(2) : '–';
+  return `<div class="card"><h3>Petrol Bought Outside <small>paid at pumps · entered from paper receipts · counted in vehicle consumption</small></h3>
+    <div class="kpis">
+      <div class="kpi" style="--c:${COL.Petrol}"><div class="t">Petrol bought outside</div><div class="v">${nf(o.verified.litres)} <small>L</small></div><div class="s">${o.verified.count} ${o.verified.count === 1 ? 'fill' : 'fills'} · ${nf(o.verified.litres / LPG)} GAL</div></div>
+      <div class="kpi" style="--c:#15171c"><div class="t">Amount paid</div><div class="v">${nf(o.verified.amount)} <small>AED</small></div><div class="s">avg ${rate} AED / litre</div></div>
+      ${o.pending.count ? `<div class="kpi" style="--c:#f59e0b"><div class="t">Pending verification</div><div class="v">${o.pending.count}</div><div class="s">${nf(o.pending.litres)} L · ${nf(o.pending.amount)} AED</div></div>` : ''}
+      ${o.rejected.count ? `<div class="kpi" style="--c:var(--bad)"><div class="t">Cancelled</div><div class="v">${o.rejected.count}</div><div class="s">${nf(o.rejected.litres)} L · ${nf(o.rejected.amount)} AED</div></div>` : ''}
+    </div>
+    ${table(['Date', 'Vehicle', 'Driver', 'Litres', 'AED', 'AED / L', 'Meter (KM)', 'Receipt No', 'Station', 'Entered by', 'Status'],
+      o.rows.map(r => [r.date, r.asset + ' – ' + r.name, r.driver, r.litres, r.amount, r.rate ? r.rate.toFixed(2) : '', r.meter, r.receiptNo, r.station, r.paidBy,
+        { html: `<span class="st ${esc(r.status)}">${esc(r.status === 'Rejected' ? 'Cancelled' : r.status)}</span>` }]), [3, 4])}</div>`;
+}
+
 function renderReport(d) {
   const f = d.filters, T = d.totals, sh = (a, b) => b ? pct(a, b) + ' of consumption' : '';
   const kp = [
@@ -1428,6 +1623,7 @@ function renderReport(d) {
       <p class="muted" style="font-size:12px">Average is shown when at least two meter readings exist in the period.</p></div>
     <div class="card"><h3>Receipts by Vendor</h3>
       ${table(['Vendor', 'Deliveries', 'Diesel', 'Petrol', 'Total ' + UN().q, 'Amount (AED)'], d.byVendor.map(v => [v.vendor, v.count, v.Diesel, v.Petrol, v.total, v.amount || '']), [1,2,3,4,5])}</div>
+    ${outsideReportHtml(d)}
     <div class="card detailcard ${$('prDetails').checked ? '' : 'noprint'}"><h3>Transaction Details <small>${d.details.length} entries</small></h3><div class="detailbox">
       ${table(['Date', 'In / Out', 'Fuel', UN().q, 'Vendor / Asset', 'Place / Source', 'Category', 'Meter', 'By', 'DN / Remarks'],
         d.details.map(x => [x.date, x.kind, x.fuel, x.qty, x.party, x.place, chipCat(x.category), x.meter, x.by, x.ref]), [3])}</div></div>
@@ -1471,6 +1667,13 @@ function downloadCsv() {
   rows.push(['BY VENDOR']);
   rows.push(['Vendor', 'Deliveries', 'Diesel', 'Petrol', 'Total', 'Amount']);
   d.byVendor.forEach(v => rows.push([v.vendor, v.count, v.Diesel, v.Petrol, v.total, v.amount]));
+  if (d.outside && d.outside.rows.length) {
+    rows.push([]);
+    rows.push(['PETROL BOUGHT OUTSIDE']);
+    rows.push(['Date', 'Vehicle', 'Driver', 'Litres', 'Amount (AED)', 'AED / L', 'Meter (KM)', 'Receipt No', 'Station', 'Entered By', 'Status']);
+    d.outside.rows.forEach(r => rows.push([r.date, r.asset + ' - ' + r.name, r.driver, r.litres, r.amount, r.rate, r.meter, r.receiptNo, r.station, r.paidBy, r.status === 'Rejected' ? 'Cancelled' : r.status]));
+    rows.push(['Total', '', '', d.outside.verified.litres, d.outside.verified.amount]);
+  }
   rows.push([]);
   rows.push(['DETAILS']);
   rows.push(['Date', 'IN/OUT', 'Fuel', 'Qty (' + U() + ')', 'Vendor / Asset', 'Place / Source', 'Category', 'Meter', 'By', 'Ref']);
@@ -1500,6 +1703,7 @@ $('btnExport').onclick = async () => {
   lockConn();
   applyRole();
   setRange('month');
+  $('outDriver').value = load('fuel_driver', ''); $('outPaidBy').value = load('fuel_paidby', '');
   fillPeriodPickers();
   markPeriodButtons();
   applyLang();
