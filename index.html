@@ -165,6 +165,9 @@
     #langBtn { padding:6px 8px; }
     header { gap:8px; }
   }
+  .sev { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:700; }
+  .sev.hi { background:#fde2e1; color:#9b1c1c; } .sev.ck { background:#fff1d6; color:#8a4b00; }
+  .chk { border-left:4px solid #f59e0b; } .chk td:last-child { white-space:normal; min-width:300px; } .chk td:nth-child(3) { white-space:normal; } .chk.ok { border-left-color:#22c55e; }
   .photo-row { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
   #outPrev { max-height:90px; border-radius:8px; border:1px solid var(--line); }
   .st { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; }
@@ -525,7 +528,10 @@ const D = {
   connected: ['Connected to Google Sheet', 'Google Sheet से जुड़ा है'], changeConn: ['🔒 Change connection', '🔒 कनेक्शन बदलें'],
   tabOut: ['⛽ Outside Petrol', '⛽ बाहर पेट्रोल'], outTitle: ['⛽ Petrol filled outside (paid at a pump)', '⛽ बाहर पंप से पेट्रोल भरवाया'],
   outHelp: ['Petrol only. The driver brings the paper receipt; the person who paid enters it here. Store stock does not change; it counts in the vehicle\'s consumption.', 'सिर्फ़ पेट्रोल। ड्राइवर कागज़ की रसीद लाता है, पैसा देने वाला उसे देखकर यहाँ एंट्री करता है। स्टोर का स्टॉक नहीं घटता; गाड़ी की खपत में जुड़ता है।'],
-  outRcpt: ['Receipt No.', 'रसीद नंबर'], outAddVeh: ['➕ New petrol vehicle', '➕ नई पेट्रोल गाड़ी जोड़ें'],
+  outRcpt: ['Receipt No.', 'रसीद नंबर'],
+  chkAlert: ['⚠ {0} unusual fuel entries this month. Please check them.', '⚠ इस महीने {0} एंट्री असामान्य लग रही हैं। इन्हें जाँच लें।'],
+  chkAlertHi: ['⚠ {0} unusual fuel entries this month, {1} of them high. Please check them.', '⚠ इस महीने {0} एंट्री असामान्य हैं, इनमें {1} ज़्यादा गंभीर। इन्हें जाँच लें।'],
+  chkOpen: ['See list', 'लिस्ट देखें'], outAddVeh: ['➕ New petrol vehicle', '➕ नई पेट्रोल गाड़ी जोड़ें'],
   outNewCode: ['Vehicle No. / Code', 'गाड़ी नंबर / कोड'], outNewCodePh: ['e.g. AD 12345', 'जैसे AD 12345'],
   outNewName: ['Vehicle name / model', 'गाड़ी का नाम / मॉडल'], outNewNamePh: ['e.g. Nissan Sunny', 'जैसे Nissan Sunny'],
   outNewNeed: ['Enter the new vehicle number and name', 'नई गाड़ी का नंबर और नाम भरें'],
@@ -970,6 +976,9 @@ function renderAlerts() {
   if (queue.length) a += `<div class="alert q">${th('queued', queue.length)}</div>`;
   if ((cfg.role || 'admin') === 'admin' && S.outside && S.outside.pendingAll > 0)
     a += `<div class="alert w"><div class="row"><span>${th('outPendingAlert', S.outside.pendingAll)}</span><button class="mini" onclick="showTab('out')">${esc(ts('outOpen'))}</button></div></div>`;
+  const ck = (S.checks || []).length;
+  if (ck) { const hi = S.checks.filter(x => x.sev === 'High').length;
+    a += `<div class="alert w"><div class="row"><span>${th(hi ? 'chkAlertHi' : 'chkAlert', ck, hi)}</span><button class="mini" onclick="openChecks()">${esc(ts('chkOpen'))}</button></div></div>`; }
   if (errors.length) a += `<div class="alert e"><b>${th('rejected')}</b>` + errors.map((x, i) => `
       <div class="row"><span>${esc(describe(x.op))}<br><small>${esc(sx(x.error))}</small></span>
       <span style="white-space:nowrap"><button class="mini" onclick="retryErr(${i})">${esc(ts('retry'))}</button> <button class="mini" onclick="dropErr(${i})">${esc(ts('remove'))}</button></span></div>`).join('') + `</div>`;
@@ -977,6 +986,12 @@ function renderAlerts() {
       warns.slice(-10).map(x => `<div class="row"><span>${esc((x.op ? describe(x.op) + ': ' : '') + sx(x.w))}</span></div>`).join('') +
       `<div class="row"><span></span><button class="mini" onclick="clearWarns()">${esc(ts('okBtn'))}</button></div></div>`;
   $('alerts').innerHTML = a;
+}
+
+function openChecks() {
+  showTab('rep');
+  setRange('month');
+  if (cfg.url) makeReport().then(() => { const c = document.querySelector('#repOut .chk'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 }
 
 function renderDash() {
@@ -1036,7 +1051,7 @@ function renderRecent() {
 }
 
 /* ================= Outside petrol ================= */
-const APP_VER = 'v11';
+const APP_VER = 'v12';
 const LPG = 3.78541;   // litres per US gallon
 let outFilter = 'all';
 function outVehicles() { return S.assets.filter(a => a.fuel === 'Petrol'); }
@@ -1605,6 +1620,17 @@ function outsideReportHtml(d) {
         { html: `<span class="st ${esc(r.status)}">${esc(r.status === 'Rejected' ? 'Cancelled' : r.status)}</span>` }]), [3, 4])}</div>`;
 }
 
+function checksHtml(d) {
+  const c = d.checks || [];
+  if (!c.length) return `<div class="card chk ok"><h3>✅ Things to Check <small>nothing unusual found in this period</small></h3></div>`;
+  const hi = c.filter(x => x.sev === 'High').length;
+  return `<div class="card chk"><h3>⚠ Things to Check <small>${c.length} unusual ${c.length === 1 ? 'entry' : 'entries'}${hi ? ' · ' + hi + ' high' : ''} · compared with each asset’s own history</small></h3>
+    ${table(['Level', 'Issue', 'Vehicle / Machine', 'Date(s)', 'What we found'],
+      c.map(x => [{ html: `<span class="sev ${x.sev === 'High' ? 'hi' : 'ck'}">${x.sev === 'High' ? 'High' : 'Check'}</span>` }, x.kind,
+        x.code ? x.code + ' – ' + x.name : x.name, x.date, x.detail]))}
+    <p class="muted" style="font-size:12px">These are signs to look into, not proof of a problem. Check the delivery note, the receipt or the meter, and ask the driver or operator.</p></div>`;
+}
+
 function renderReport(d) {
   const f = d.filters, T = d.totals, sh = (a, b) => b ? pct(a, b) + ' of consumption' : '';
   const kp = [
@@ -1626,6 +1652,7 @@ function renderReport(d) {
       </div>
     </div>
     <div class="kpis">${kp.map(k => `<div class="kpi" style="--c:${k.c}"><div class="t">${k.t}</div><div class="v">${nf(k.v)} <small>${k.unit === '' ? '' : U()}</small></div><div class="s">${k.s || ''}</div></div>`).join('')}</div>
+    ${checksHtml(d)}
     <div class="charts">
       <div class="card"><h3>${d.monthly ? 'Monthly' : 'Daily'} Trend <small>Received vs consumed</small></h3><div class="cbox tall"><canvas id="rTrend"></canvas></div></div>
       <div class="card"><h3>Direct vs Indirect</h3><div class="cbox tall"><canvas id="rCatC"></canvas></div></div>
@@ -1691,6 +1718,11 @@ function downloadCsv() {
   rows.push(['BY VENDOR']);
   rows.push(['Vendor', 'Deliveries', 'Diesel', 'Petrol', 'Total', 'Amount']);
   d.byVendor.forEach(v => rows.push([v.vendor, v.count, v.Diesel, v.Petrol, v.total, v.amount]));
+  rows.push([]);
+  rows.push(['THINGS TO CHECK']);
+  rows.push(['Level', 'Issue', 'Code', 'Name', 'Date(s)', 'Detail']);
+  (d.checks || []).forEach(c => rows.push([c.sev, c.kind, c.code, c.name, c.date, c.detail]));
+  if (!(d.checks || []).length) rows.push(['OK', 'Nothing unusual found']);
   if (d.outside && d.outside.rows.length) {
     rows.push([]);
     rows.push(['PETROL BOUGHT OUTSIDE']);
